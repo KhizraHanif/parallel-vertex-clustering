@@ -38,7 +38,8 @@ if len(sys.argv) > 1:
 WORK_DIR = pathlib.Path(WORK_DIR)
 
 def extractNumber(s: str) -> str:
-    return "".join(re.findall(r"(\d+(?:\.\d+)?)(e[+-]{0,1}\d+)?", s)[0])
+    m = re.search(r'[-+]?\d+(?:\.\d+)?(?:e[+-]?\d+)?', s, re.I)
+    return m.group(0) if m else ""
 
 def extractRow(s: str, pattern: str) -> str:
     return re.findall(pattern, s)[0]

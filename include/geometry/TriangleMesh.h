@@ -102,7 +102,7 @@ public:
 ///
 /// \param eps defines the maximum distance of close by vertices.
 /// This function might help to close triangle soups.
-TriangleMesh &MergeCloseVertices(KDTreeFlann const& index, double eps);      
+TriangleMesh &MergeCloseVertices(KDTreeFlann const& index, double eps, bool print_time);
 
     /// \brief Function to compute triangle normals, usually called before
     /// rendering.

@@ -29,77 +29,95 @@
 #include <string>
 #include <stdexcept>
 #include <functional>
+#include <chrono>
 #include <omp.h>
 #include "../include/Eigen/Dense"
-
+#include "../include/Timer.hpp"
+// nima
 #include "../include/io/TriangleMeshIO.h"
 #include "../include/geometry/TriangleMeshPWeld.h"
 #include "../include/geometry/KDTreeFlann.h"
 
 enum class Version{OPEN3D=0, FORWARD, FORWARD_ASYNC};
 std::string programName[] = {"Open3D", "forward", "forward_async"};
+int main(int argc, char** argv) {
+    if (argc == 1) {
+        std::cout << "Enter the following:\n";
+        std::cout << "\t-eps (e.g., 0.001)\n";
+        std::cout << "\t-Version:\n\t\t0: Open3D, 1: forward, 2: forward_async\n";
+        std::cout << "\t-path to data (must be .ply)\n";
+        std::cout << "\t-number of cores for all parallel versions (default: 8)\n";
+        std::cout << "\t-output path to write the reduced mesh (must end in .ply)\n";
+        std::cout << "\t-e.g., ./main 0.001 1 ../src/data/xyzrgb_manuscript.ply 8 ../src/data/output.ply\n";
+        return 0;
+    }
 
-int main(int argc, char** argv){
+    const double eps = std::stod(argv[1]);
+    const int version = std::stoi(argv[2]);
+    const std::string dataPath = argv[3];
+    const int numCores = (argc >= 5 ? std::stoi(argv[4]) : 8);
+    const std::string outputDir = (argc >= 6 ? argv[5] : "");
+    const bool verbose = true;
+    const int num_trials = 20;
 
-  if (argc == 1){
-    std::cout << "Enter the following:\n";
-    std::cout << "\t-eps (e.g., 0.001)\n";
-    std::cout << "\t-Version:\n\t\t0: Open3D, 1: forward, 2: forward_async\n";
-    std::cout << "\t-path to data (must be .ply)\n";
-    std::cout << "\t-number of cores for all parallel versions (default: 8)\n";
-    std::cout << "\t-output path to write the reduced mesh (must end in .ply)";
-    std::cout << "\t-e.g., ./main 0.001 1 ../src/data/xyzrgb_manuscript.ply [4] [../src/data/output.ply]\n";
+    std::cout << "Configuration:\n";
+    std::cout << "\t-eps: " << eps << "\n";
+    std::cout << "\t-program: " << programName[version] << "\n";
+    std::cout << "\t-path to dataset: " << dataPath << "\n";
+    std::cout << "\t-cores: " << numCores << "\n";
+    std::cout << "--**--**--**--**--**--**--**--**--\n";
+
+    // Load original mesh
+    open3d::geometry::TriangleMesh original_mesh;
+    if (!open3d::io::ReadTriangleMesh(dataPath, original_mesh)) {
+        std::cerr << "Failed to load mesh.\n";
+        return 1;
+    }
+
+    // Construct KDTree once and reuse
+    open3d::geometry::KDTreeFlann kdtree(original_mesh);
+
+    omp_set_num_threads(numCores);
+
+    std::vector<double> runtimes;
+    runtimes.reserve(num_trials);
+
+    open3d::geometry::TriangleMeshPWeld last_trial_mesh;
+
+    for (int trial = 0; trial < num_trials; ++trial) {
+        open3d::geometry::TriangleMeshPWeld mesh_pweld(original_mesh); // fresh copy
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        switch ((Version)version) {
+        case Version::OPEN3D:
+            mesh_pweld.MergeCloseVertices(kdtree, eps, true);
+            break;
+        case Version::FORWARD:
+            mesh_pweld.merge_vertices_forward(kdtree, eps, true);
+            break;
+        case Version::FORWARD_ASYNC:
+            mesh_pweld.merge_vertices_forward_async(kdtree, eps, true);
+            break;
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        double duration_ms = std::chrono::duration<double, std::milli>(end - start).count();
+        runtimes.push_back(duration_ms);
+        std::cout << "Trial " << trial + 1 << " runtime: " << duration_ms << " ms\n";
+
+        if (trial == num_trials - 1) {
+            last_trial_mesh = std::move(mesh_pweld); // save last mesh for export
+        }
+    }
+
+    if (!outputDir.empty()) {
+        std::cout << "Writing the simplified mesh to: " << outputDir << "\n";
+        open3d::io::WriteTriangleMesh(outputDir, last_trial_mesh, false, true);
+    }
+
+    std::cout << "Final vertex count: " << last_trial_mesh.vertices_.size() << "\n";
+    std::cout << "Final triangle count: " << last_trial_mesh.triangles_.size() << "\n";
+
     return 0;
-  }
-
-  const double eps = std::stod(argv[1]);
-  const int version = std::stoi(argv[2]);
-  const std::string dataPath = argv[3];
-  const int numCores = (argc >= 5 ? std::stoi(argv[4]) : 1);
-  const std::string outputDir = (argc >= 6 ? argv[5] : "");
-  const bool verbose = true;
-
-  std::cout << "Configuration:\n";
-  std::cout << "\t-eps: " << eps << "\n";
-  std::cout << "\t-program: " << programName[version] << "\n";
-  std::cout << "\t-path to dataset: " + dataPath + "\n";
-  std::cout << "--**--**--**--**--**--**--**--**--\n";
-
-  auto mesh = open3d::geometry::TriangleMesh();
-  open3d::io::ReadTriangleMesh(dataPath, mesh);
-  open3d::geometry::KDTreeFlann kdtree(mesh);
-
-  size_t num_vertices_after_reduction;
-
-  auto mesh_pweld = open3d::geometry::TriangleMeshPWeld(mesh);
-    
-  if (verbose){
-    std::cout << "number of original vertices: " << mesh_pweld.vertices_.size() << "\n";
-    std::cout << "number of original triangles: " << mesh_pweld.triangles_.size() << "\n";
-  }
-
-  omp_set_num_threads(numCores); // set the number of cores for the entire program
-  switch ((Version)version)
-  {
-    case Version::OPEN3D:
-      mesh_pweld.MergeCloseVertices(kdtree, eps); // Open3D
-      break;
-    case Version::FORWARD:
-      mesh_pweld.merge_vertices_forward(kdtree, eps); // forward
-      break;
-    case Version::FORWARD_ASYNC:
-      mesh_pweld.merge_vertices_forward_async(kdtree, eps); // forward-async
-      break;
-    
-  }
-
-  num_vertices_after_reduction = mesh_pweld.vertices_.size();
-  if (!outputDir.empty())
-  {
-    std::cout << "Writing the simplified mesh to: " << outputDir << "\n";
-    open3d::io::WriteTriangleMesh(outputDir, mesh_pweld, false, true);
-  }
-  if (verbose){
-    std::cout << "number of vertices after clustering: " << num_vertices_after_reduction << "\n";
-  }
 }

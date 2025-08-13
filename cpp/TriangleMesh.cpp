@@ -24,11 +24,12 @@
 // IN THE SOFTWARE.
 // ----------------------------------------------------------------------------
 
+
 #include <numeric>
 #include <queue>
 #include <tuple>
 #include <omp.h>
-
+#include "../include/Timer.hpp"
 // nima
 #include <iostream>
 #include <iterator>
@@ -38,104 +39,117 @@
 #include "../include/geometry/TriangleMesh.h"
 
 namespace open3d {
-namespace geometry {
+    namespace geometry {
 
-TriangleMesh &TriangleMesh::Clear() {
-    MeshBase::Clear();
-    triangles_.clear();
-    triangle_normals_.clear();
-    adjacency_list_.clear();
+        TriangleMesh& TriangleMesh::Clear() {
+            MeshBase::Clear();
+            triangles_.clear();
+            triangle_normals_.clear();
+            adjacency_list_.clear();
 
-    return *this;
-}
-
-TriangleMesh &TriangleMesh::ComputeTriangleNormals(
-        bool normalized /* = true*/) {
-    triangle_normals_.resize(triangles_.size());
-    for (size_t i = 0; i < triangles_.size(); i++) {
-        auto &triangle = triangles_[i];
-        Eigen::Vector3d v01 = vertices_[triangle(1)] - vertices_[triangle(0)];
-        Eigen::Vector3d v02 = vertices_[triangle(2)] - vertices_[triangle(0)];
-        triangle_normals_[i] = v01.cross(v02);
-    }
-    if (normalized) {
-        NormalizeNormals();
-    }
-    return *this;
-}
-
-TriangleMesh &TriangleMesh::ComputeVertexNormals(bool normalized /* = true*/) {
-    ComputeTriangleNormals(false);
-    vertex_normals_.resize(vertices_.size(), Eigen::Vector3d::Zero());
-    for (size_t i = 0; i < triangles_.size(); i++) {
-        auto &triangle = triangles_[i];
-        vertex_normals_[triangle(0)] += triangle_normals_[i];
-        vertex_normals_[triangle(1)] += triangle_normals_[i];
-        vertex_normals_[triangle(2)] += triangle_normals_[i];
-    }
-    if (normalized) {
-        NormalizeNormals();
-    }
-    return *this;
-}
-
-TriangleMesh &TriangleMesh::ComputeAdjacencyList() {
-    adjacency_list_.clear();
-    adjacency_list_.resize(vertices_.size());
-    for (const auto &triangle : triangles_) {
-        adjacency_list_[triangle(0)].insert(triangle(1));
-        adjacency_list_[triangle(0)].insert(triangle(2));
-        adjacency_list_[triangle(1)].insert(triangle(0));
-        adjacency_list_[triangle(1)].insert(triangle(2));
-        adjacency_list_[triangle(2)].insert(triangle(0));
-        adjacency_list_[triangle(2)].insert(triangle(1));
-    }
-    return *this;
-}
-
-TriangleMesh &TriangleMesh::MergeCloseVertices(KDTreeFlann const& kdtree, double eps) {
-    // precompute all neighbours
-    std::vector<std::vector<int>> nbs;
-    nbs = std::vector<std::vector<int>>(vertices_.size());
-    #pragma omp parallel for schedule(static)
-    for (int idx = 0; idx < int(vertices_.size()); ++idx) {
-        std::vector<double> dists2;
-        kdtree.SearchRadius(vertices_[idx], eps, nbs[idx], dists2);
-    }
-
-    std::vector<Eigen::Vector3d> new_vertices;
-    std::unordered_map<int, int> new_vert_mapping;
-
-    for (int vidx = 0; vidx < int(vertices_.size()); ++vidx) {
-        if (new_vert_mapping.count(vidx) > 0) {
-            continue;
+            return *this;
         }
 
-        int new_vidx = int(new_vertices.size());
-        new_vert_mapping[vidx] = new_vidx;
-
-        Eigen::Vector3d vertex = vertices_[vidx];
-        int n = 1;
-        for (int nb : nbs[vidx]) {
-            if (vidx == nb || new_vert_mapping.count(nb) > 0) {
-                continue;
+        TriangleMesh& TriangleMesh::ComputeTriangleNormals(
+            bool normalized /* = true*/) {
+            triangle_normals_.resize(triangles_.size());
+            for (size_t i = 0; i < triangles_.size(); i++) {
+                auto& triangle = triangles_[i];
+                Eigen::Vector3d v01 = vertices_[triangle(1)] - vertices_[triangle(0)];
+                Eigen::Vector3d v02 = vertices_[triangle(2)] - vertices_[triangle(0)];
+                triangle_normals_[i] = v01.cross(v02);
             }
-            vertex += vertices_[nb];
-            new_vert_mapping[nb] = new_vidx;
-            n += 1;
+            if (normalized) {
+                NormalizeNormals();
+            }
+            return *this;
         }
-        new_vertices.push_back(vertex / n);
-    }
-    std::swap(vertices_, new_vertices);
 
-    for (auto &triangle : triangles_) {
-        triangle(0) = new_vert_mapping[triangle(0)];
-        triangle(1) = new_vert_mapping[triangle(1)];
-        triangle(2) = new_vert_mapping[triangle(2)];
-    }
+        TriangleMesh& TriangleMesh::ComputeVertexNormals(bool normalized /* = true*/) {
+            ComputeTriangleNormals(false);
+            vertex_normals_.resize(vertices_.size(), Eigen::Vector3d::Zero());
+            for (size_t i = 0; i < triangles_.size(); i++) {
+                auto& triangle = triangles_[i];
+                vertex_normals_[triangle(0)] += triangle_normals_[i];
+                vertex_normals_[triangle(1)] += triangle_normals_[i];
+                vertex_normals_[triangle(2)] += triangle_normals_[i];
+            }
+            if (normalized) {
+                NormalizeNormals();
+            }
+            return *this;
+        }
 
-    return *this;
+        TriangleMesh& TriangleMesh::ComputeAdjacencyList() {
+            adjacency_list_.clear();
+            adjacency_list_.resize(vertices_.size());
+            for (const auto& triangle : triangles_) {
+                adjacency_list_[triangle(0)].insert(triangle(1));
+                adjacency_list_[triangle(0)].insert(triangle(2));
+                adjacency_list_[triangle(1)].insert(triangle(0));
+                adjacency_list_[triangle(1)].insert(triangle(2));
+                adjacency_list_[triangle(2)].insert(triangle(0));
+                adjacency_list_[triangle(2)].insert(triangle(1));
+            }
+            return *this;
+        }
+
+        TriangleMesh& TriangleMesh::MergeCloseVertices(KDTreeFlann const& kdtree, double eps, bool print_time) {
+            Time total_timer("average time", print_time);  // this will emit: "average time to
+            if (print_time) std::cout << "original vertices:" << vertices_.size() << "\n";
+
+
+            // --- Neighbor search ---
+            std::vector<std::vector<int>> nbs(vertices_.size());
+            {
+                Time adj_list_timer("Populating adj list", print_time);  // <— exact text
+#pragma omp parallel for schedule(static)
+                for (int i = 0; i < (int)vertices_.size(); ++i) {
+                    std::vector<double> dists2;
+                    kdtree.SearchRadius(vertices_[i], eps, nbs[i], dists2);
+                }
+            }
+            // --- Clustering ---
+            std::vector<Eigen::Vector3d> new_vertices;
+            std::unordered_map<int, int> new_vert_mapping;
+            {
+                Time clustering_timer("Clustering", print_time);
+                for (int vidx = 0; vidx < static_cast<int>(vertices_.size()); ++vidx) {
+                    if (new_vert_mapping.count(vidx) > 0) continue;
+
+                    int new_vidx = static_cast<int>(new_vertices.size());
+                    new_vert_mapping[vidx] = new_vidx;
+
+                    Eigen::Vector3d vertex = vertices_[vidx];
+                    int n = 1;
+                    for (int nb : nbs[vidx]) {
+                        if (vidx == nb || new_vert_mapping.count(nb) > 0) continue;
+                        vertex += vertices_[nb];
+                        new_vert_mapping[nb] = new_vidx;
+                        n++;
+                    }
+                    new_vertices.push_back(vertex / n);
+                }
+            }
+            std::swap(vertices_, new_vertices);
+
+            // --- Remap triangles ---
+            {
+                Time mesh_timer("Update mesh", print_time);
+                for (auto& triangle : triangles_) {
+                    triangle(0) = new_vert_mapping[triangle(0)];
+                    triangle(1) = new_vert_mapping[triangle(1)];
+                    triangle(2) = new_vert_mapping[triangle(2)];
+                }
+            }
+
+
+            if (print_time) std::cout << "vertices after: " << vertices_.size() << "\n";
+
+            // optional but helpful: make extractor happy for timeAll
+            if (print_time) std::cout << "average time: " << " seconds\n";
+            return *this;
+        }
+
+    }
 }
-
-}  // namespace geometry
-}  // namespace open3d

@@ -62,8 +62,10 @@ public:
 
     virtual void reduce(std::vector<int>& pid2ccid, std::vector<Eigen::Vector3d>& new_vertices, const std::vector<int>& cp_vec, int num_vertices) const;
 
-    virtual TriangleMeshPWeld& merge_vertices_forward(KDTreeFlann const& index, double eps); 
-    virtual TriangleMeshPWeld& merge_vertices_forward_async(KDTreeFlann const& index, double eps);    
+    virtual TriangleMeshPWeld& merge_vertices_forward(KDTreeFlann const& index, double eps, bool print_time);
+
+    virtual TriangleMeshPWeld& merge_vertices_forward_async(KDTreeFlann const& index, double eps, bool print_time);
+
 
 };
 

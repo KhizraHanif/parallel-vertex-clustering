@@ -1,0 +1,2 @@
+threadNum,timeAll,timeP,timeC,timeW,timeS,timeUNV,timeUR,timeU,batch,numIter,numOrgVerts,numSimpVerts
+64,17.037985000,-1.000000000,3.221172500,-1.000000000,-1.000000000,-1.000000000,-1.000000000,0.731015400,-1,-1,-1,13891934

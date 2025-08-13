@@ -71,17 +71,16 @@ namespace { // anonymous
    * Determines the reduction rate of vertex clustering on a mesh at a specific
    * Epsilon value, using a pre-built spatial index.
    */
-  ReductionRate get_reduction_rate( SpatialIndex const& kdtree, Mesh mesh, Epsilon epsilon )
+  ReductionRate get_reduction_rate(SpatialIndex const& kdtree, Mesh mesh, Epsilon epsilon)
   {
-    // Records vertex count before clustering, runs the vertex clustering algorithm,
-    // then records the vertex count on the reduced mesh.
+      std::cout << "Testing epsilon = " << epsilon << std::endl;
 
-    std::cout << "Testing epsilon = " << epsilon << std::endl;
+      auto const initial_vertex_count = mesh.vertices_.size();
+      mesh.merge_vertices_forward(kdtree, epsilon, true);  // pass 3rd argument!
 
-    auto const initial_vertex_count = mesh.vertices_.size();
-    mesh.merge_vertices_forward( kdtree, epsilon);
-    return ( initial_vertex_count - mesh.vertices_.size() ) / static_cast< ReductionRate >( initial_vertex_count );
+      return (initial_vertex_count - mesh.vertices_.size()) / static_cast<ReductionRate>(initial_vertex_count);
   }
+
 
 
   /**
