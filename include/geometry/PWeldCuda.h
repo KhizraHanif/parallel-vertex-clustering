@@ -34,4 +34,3 @@ namespace open3d {
 
     } // namespace geometry
 } // namespace open3d
-c
