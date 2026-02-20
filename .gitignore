@@ -1,43 +1,32 @@
-# Build and IDE files
+# Build folders
 build/
 out/
-*.o
-*.so
-*.a
-.vs/
-*.vcxproj*
+bin/
+obj/
+
+# CMake
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 
-# Python caches
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+*.user
+*.pdb
+*.ilk
+*.suo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Python
 __pycache__/
 *.pyc
-*.pyo
-.ipynb_checkpoints/
 
-# Logs and SLURM outputs
-*.log
-*.out
-*.err
-logs/
-slurm-*.out
-slurm-*.err
-
-# Generated results
-scratch/
-results/
-outputs/
-exported_data/
-*.bin
-*.ply
-*.pt
-*.pth
-*.obj
-*.stl
-
-# OS/editor
-.DS_Store
-*.swp
-*.tmp
+# Large datasets (optional)
+data/*.ply
+!data/test*.ply

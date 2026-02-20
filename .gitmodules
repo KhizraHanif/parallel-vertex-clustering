@@ -1,0 +1,3 @@
+[submodule "external/cuNSearch"]
+	path = external/cuNSearch
+	url = https://github.com/InteractiveComputerGraphics/cuNSearch
