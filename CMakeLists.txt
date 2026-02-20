@@ -84,6 +84,9 @@ add_subdirectory(filePLY)
 # Add cuNSearch as a library
 # Add cuNSearch as a submodule
 add_subdirectory(external/cuNSearch)
+target_include_directories(cuNSearch PUBLIC
+    ${CMAKE_BINARY_DIR}/external/cuNSearch/cuNSearch
+)
 
 # Include its headers
 include_directories(${CMAKE_SOURCE_DIR}/external/cuNSearch/include)
