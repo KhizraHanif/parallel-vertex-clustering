@@ -1,8 +1,12 @@
+enable_language(CUDA)
 file(GLOB CPP "../cpp/*.cpp")
+set(GPU_SRC ../cpp/PWeldCuda.cu)
 add_executable(
   merge-vertices
     main.cpp
     ${CPP}
+    ${GPU_SRC}
+    
 )
 
 set_target_properties(
@@ -15,16 +19,18 @@ set_target_properties(
 
 target_link_libraries(
   merge-vertices
-#    ${Boost_LIBRARIES}
+  PRIVATE
     filePLY
     rply
+  
 )
+
 
 add_executable(
   epsilon-finder
     find-eps.cpp
     ${CPP}
-)
+    )
 
 set_target_properties(
   epsilon-finder
@@ -32,6 +38,7 @@ set_target_properties(
       ARCHIVE_OUTPUT_DIRECTORY "../lib/"
       LIBRARY_OUTPUT_DIRECTORY "../lib/"
       RUNTIME_OUTPUT_DIRECTORY "../"
+
 )
 
 
@@ -40,4 +47,5 @@ target_link_libraries(
 #    ${Boost_LIBRARIES}
     filePLY
     rply
+ "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib"
 )

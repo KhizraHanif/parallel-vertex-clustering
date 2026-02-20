@@ -27,47 +27,59 @@
 #include "TriangleMesh.h"
 
 namespace open3d {
-namespace geometry {
+    namespace geometry {
 
-struct CP{
-public:
-    int cid;
-    int pid;
-};
+        struct CP {
+        public:
+            int cid;
+            int pid;
+        };
 
-/// \class TriangleMesh
-///
-/// \brief Triangle mesh contains vertices and triangles represented by the
-/// indices to the vertices.
-///
-/// Optionally, the mesh may also contain triangle normals, vertex normals and
-/// vertex colors.
-class TriangleMeshPWeld : public TriangleMesh {
-public:
-    /// \brief Default Constructor.
-    TriangleMeshPWeld() : TriangleMesh() {}
-    /// \brief Parameterized Constructor.
-    ///
-    /// \param vertices list of vertices.
-    /// \param triangles list of triangles.
-    TriangleMeshPWeld(const std::vector<Eigen::Vector3d> &vertices,
-                 const std::vector<Eigen::Vector3i> &triangles) : 
-                 TriangleMesh(vertices, triangles){};
-    /// \brief Parameterized Constructor.
-    ///
-    /// \param triangle_mesh instance of open3d::geometry::TriangleMesh.
-    TriangleMeshPWeld(const open3d::geometry::TriangleMesh& triangle_mesh) : 
-                 TriangleMeshPWeld(triangle_mesh.vertices_, triangle_mesh.triangles_){};
-    ~TriangleMeshPWeld() override {}
+        /// \class TriangleMesh
+        ///
+        /// \brief Triangle mesh contains vertices and triangles represented by the
+        /// indices to the vertices.
+        ///
+        /// Optionally, the mesh may also contain triangle normals, vertex normals and
+        /// vertex colors.
+        class TriangleMeshPWeld : public TriangleMesh {
+        public:
+            /// \brief Default Constructor.
+            TriangleMeshPWeld() : TriangleMesh() {}
+            /// \brief Parameterized Constructor.
+            ///
+            /// \param vertices list of vertices.
+            /// \param triangles list of triangles.
+            TriangleMeshPWeld(const std::vector<Eigen::Vector3d>& vertices,
+                const std::vector<Eigen::Vector3i>& triangles) :
+                TriangleMesh(vertices, triangles) {
+            };
+            /// \brief Parameterized Constructor.
+            ///
+            /// \param triangle_mesh instance of open3d::geometry::TriangleMesh.
+            TriangleMeshPWeld(const open3d::geometry::TriangleMesh& triangle_mesh) :
+                TriangleMeshPWeld(triangle_mesh.vertices_, triangle_mesh.triangles_) {
+            };
+            ~TriangleMeshPWeld() override {}
 
-    virtual void reduce(std::vector<int>& pid2ccid, std::vector<Eigen::Vector3d>& new_vertices, const std::vector<int>& cp_vec, int num_vertices) const;
+            virtual void reduce(std::vector<int>& pid2ccid, std::vector<Eigen::Vector3d>& new_vertices, const std::vector<int>& cp_vec, int num_vertices) const;
 
-    virtual TriangleMeshPWeld& merge_vertices_forward(KDTreeFlann const& index, double eps, bool print_time);
+            virtual TriangleMeshPWeld& merge_vertices_forward(KDTreeFlann const& index, double eps, bool print_time);
 
-    virtual TriangleMeshPWeld& merge_vertices_forward_async(KDTreeFlann const& index, double eps, bool print_time);
+            virtual TriangleMeshPWeld& merge_vertices_forward_async(KDTreeFlann const& index, double eps, bool print_time);
 
 
-};
+        };
+        // Utility: Build adjacency list (CSR format) using KDTree on CPU
+        void build_strict_adjacency_cpu(
+            open3d::geometry::KDTreeFlann& kdtree,
+            const std::vector<Eigen::Vector3d>& vertices,
+            double eps,
+            std::vector<int>& neighbor_indices,
+            std::vector<int>& neighbor_offsets,
+            std::vector<int>& depend);
 
-}  // namespace geometry
+    }  // namespace geometry
 }  // namespace open3d
+
+

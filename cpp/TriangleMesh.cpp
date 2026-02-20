@@ -24,7 +24,6 @@
 // IN THE SOFTWARE.
 // ----------------------------------------------------------------------------
 
-
 #include <numeric>
 #include <queue>
 #include <tuple>
@@ -102,7 +101,7 @@ namespace open3d {
             // --- Neighbor search ---
             std::vector<std::vector<int>> nbs(vertices_.size());
             {
-                Time adj_list_timer("Populating adj list", print_time);  // <â€” exact text
+                Time adj_list_timer("Populating adj list", print_time);  // <— exact text
 #pragma omp parallel for schedule(static)
                 for (int i = 0; i < (int)vertices_.size(); ++i) {
                     std::vector<double> dists2;

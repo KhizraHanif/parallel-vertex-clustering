@@ -1,57 +1,98 @@
-#!/usr/bin/env python3
+# --------------------------------------------------------------
+#  Figure 1.2 – Vertex Clustering (CORRECTED to match new image)
+# --------------------------------------------------------------
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import Circle
 
-# ----------------------------------------------------------------------------
-# MIT License
-#
-# Copyright (c) 2023 Nima Fathollahi, Sean Chester
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------
+# 1. Original vertices (exactly as in the new figure)
+# ------------------------------------------------------------------
+pts = np.array([
+    [0.0, 0.0],    # 1
+    [0.8, -0.8],   # 2
+    [3.0, 0.0],    # 3
+    [1.5, 0.2],    # 4
+    [1.2, 1.8]     # 5  ← outside both clusters
+])
+labels = ['1', '2', '3', '4', '5']
 
-# convert-to-ply.py directory
-# converts all files in a directory from any readable mesh into .PLY
-# mostly designed to convert the .STL Thingi10k files to .PLY
+# ------------------------------------------------------------------
+# 2. Cluster representatives (red circles) – manually placed
+# ------------------------------------------------------------------
+left_rep  = np.array([1.0, 0.0])   # rep for {1,2,4}
+right_rep = np.array([2.5, 0.0])   # rep for {3}
 
-import os, argparse, pathlib, meshio
+reps = [left_rep, right_rep]
+rep_labels = ['A', 'B']  # optional
 
-def convert_to_ply():
-    my_parser = argparse.ArgumentParser(description="Takes all mesh files and creates a new version in .PLY format.")
-    my_parser.add_argument('input_dir', metavar='input_directory', type=pathlib.Path, help='the directory containing the mesh files')
-    my_parser.add_argument('dest_dir', metavar='output_directory', type=pathlib.Path, help='the directory in which to save the .PLY meshes')
-    input_directory = my_parser.parse_args().input_dir
-    output_directory = my_parser.parse_args().dest_dir
+# ε = radius of clustering cells
+epsilon = 1.2
 
-    all_files = [file.name for file in os.scandir(input_directory) if file.is_file()]
+# ------------------------------------------------------------------
+# 3. Assign vertices to clusters (distance ≤ ε from rep)
+# ------------------------------------------------------------------
+clusters = {0: [], 1: []}  # 0: left, 1: right
+for i, p in enumerate(pts):
+    dist_left  = np.linalg.norm(p - left_rep)
+    dist_right = np.linalg.norm(p - right_rep)
+    if dist_left <= epsilon:
+        clusters[0].append(i)
+    if dist_right <= epsilon:
+        clusters[1].append(i)
 
-    try:
-        os.mkdir(output_directory)
-    except FileExistsError:
-        pass
+# Note: point 5 is in neither → correctly excluded
 
-    for sequence_num, filename in enumerate(all_files):
-        print("Converting mesh #" + str(sequence_num) + " of " + str(len(all_files)))
-        try:
-            mesh = meshio.read(os.path.join(input_directory, filename))
-            output_path = pathlib.Path(filename).stem + ".ply"
-            mesh.write(os.path.join(output_directory, output_path))
-        except:
-            pass
+# ------------------------------------------------------------------
+# 4. Plot
+# ------------------------------------------------------------------
+fig, ax = plt.subplots(figsize=(9, 4))
 
-if __name__ == "__main__":
-    convert_to_ply()
+# --- Original points (black) ---
+ax.scatter(pts[:, 0], pts[:, 1], c='black', s=80, zorder=5)
+for i, (x, y) in enumerate(pts):
+    ax.text(x, y - 0.18, labels[i], ha='center', va='top', fontsize=12, fontweight='bold')
+
+# --- Cluster representatives (red with black edge) ---
+ax.scatter(*left_rep,  c='red', s=120, edgecolors='black', linewidth=1.5, zorder=6)
+ax.scatter(*right_rep, c='red', s=120, edgecolors='black', linewidth=1.5, zorder=6)
+
+# --- Dashed red circles (radius = ε) centered on representatives ---
+ax.add_patch(Circle(left_rep,  epsilon, color='red', ls='--', fill=False, lw=1.5))
+ax.add_patch(Circle(right_rep, epsilon, color='red', ls='--', fill=False, lw=1.5))
+
+# --- Black arrows: original vertex → its representative ---
+arrowprops = dict(arrowstyle='->', lw=1.2, color='black')
+
+# Left cluster: 1,2,4 → left_rep
+for i in clusters[0]:
+    if i != 4:  # avoid overlap
+        ax.annotate('', xy=left_rep, xytext=pts[i],
+                    arrowprops=arrowprops, zorder=4)
+
+# Right cluster: 3 → right_rep
+for i in clusters[1]:
+    ax.annotate('', xy=right_rep, xytext=pts[i],
+                arrowprops=arrowprops, zorder=4)
+
+# --- ε arrows (from rep outward, horizontal) ---
+ax.annotate('', xy=(left_rep[0] - epsilon, left_rep[1]),
+            xytext=left_rep, arrowprops=dict(arrowstyle='<->', lw=1.2, color='black'))
+ax.annotate('', xy=(right_rep[0] + epsilon, right_rep[1]),
+            xytext=right_rep, arrowprops=dict(arrowstyle='<->', lw=1.2, color='black'))
+
+# --- ε labels ---
+ax.text(left_rep[0] - epsilon - 0.1, left_rep[1], r'$\varepsilon$', 
+        fontsize=14, color='black', ha='right', va='center')
+ax.text(right_rep[0] + epsilon + 0.1, right_rep[1], r'$\varepsilon$', 
+        fontsize=14, color='black', ha='left', va='center')
+
+# --- Layout ---
+ax.set_xlim(-0.8, 4.2)
+ax.set_ylim(-1.5, 2.2)
+ax.set_aspect('equal')
+ax.axis('off')
+
+plt.tight_layout()
+plt.savefig("vertex_clustering_corrected.png", dpi=500, bbox_inches='tight')
+plt.show()

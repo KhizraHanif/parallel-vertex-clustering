@@ -1,25 +1,6 @@
 // ----------------------------------------------------------------------------
 // MIT License
-//
-// Copyright (c) 2023 Nima Fathollahi, Sean Chester
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// (c) 2023 Nima Fathollahi, Sean Chester
 // ----------------------------------------------------------------------------
 
 #include <fstream>
@@ -36,6 +17,7 @@
 #include "../include/Eigen/Dense"
 #include "../include/geometry/TriangleMeshPWeld.h"
 #include "../include/Timer.hpp"
+
 
 #include <atomic>
 #if defined(_MSC_VER)
@@ -371,5 +353,49 @@ namespace open3d {
             return *this;
         }
 
+        void build_strict_adjacency_cpu(
+            open3d::geometry::KDTreeFlann& kdtree,
+            const std::vector<Eigen::Vector3d>& vertices,
+            double eps,
+            std::vector<int>& neighbor_indices,
+            std::vector<int>& neighbor_offsets,
+            std::vector<int>& depend)
+        {
+            int n = vertices.size();
+            neighbor_offsets.resize(n + 1);
+            neighbor_offsets[0] = 0;
+            depend.resize(n, 0);
+
+            std::vector<int> neighbors;
+            std::vector<double> dists;
+
+            // Open file for debugging
+            std::ofstream fout("neighbors_kdtree.txt");
+            if (!fout) {
+                throw std::runtime_error("Cannot open neighbors_kdtree.txt for writing");
+            }
+
+            for (int u = 0; u < n; u++) {
+                int k = kdtree.SearchRadius(vertices[u], eps, neighbors, dists);
+
+                fout << u;
+                for (int v : neighbors) {
+                    if (v == u) continue; // skip self
+                    if (v < u) {
+                        depend[u]++; // smaller neighbor
+                    }
+                    else {
+                        neighbor_indices.push_back(v); // only store bigger ones
+                    }
+                    fout << " " << v; // dump all neighbors for comparison
+                }
+                fout << "\n";
+
+                neighbor_offsets[u + 1] = (int)neighbor_indices.size();
+            }
+
+            fout.close();
+            std::cout << "✅ Neighbor list dumped to neighbors_kdtree.txt\n";
+        }
     } // namespace geometry
 } // namespace open3d
