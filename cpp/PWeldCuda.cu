@@ -1,3 +1,4 @@
+#include <cfloat>
 // ----------------------------------------------------------------------------
 // MIT License
 // GPU port of Nima Fathollahi & Sean Chester's strict-mode clustering

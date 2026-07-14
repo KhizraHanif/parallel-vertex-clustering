@@ -4,9 +4,6 @@ cmake_minimum_required(VERSION 3.18)
 project(merge-vertices LANGUAGES C CXX CUDA)
 add_definitions(-DUSE_CUDA)
 
-set(CMAKE_C_COMPILER "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.36.32532/bin/HostX64/x64/cl.exe")
-set(CMAKE_CUDA_COMPILER "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8/bin/nvcc.exe")
-set(CMAKE_CXX_COMPILER "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8/bin/nvcc.exe")
 
 
 set(CMAKE_CXX_STANDARD 17)
@@ -72,9 +69,6 @@ include_directories(
 set(CUDA_TOOLKIT_ROOT_DIR "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8")
 # Vcpkg Path for Catch2
 set(CMAKE_TOOLCHAIN_FILE "C:/Users/RBTGL/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
-set(Catch2_DIR "C:/Users/RBTGL/vcpkg/installed/x64-windows/share/catch2")
-find_package(Catch2 CONFIG REQUIRED)
-
 
 
 # Production code

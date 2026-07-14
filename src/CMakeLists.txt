@@ -6,7 +6,6 @@ add_executable(
     main.cpp
     ${CPP}
     ${GPU_SRC}
-    
 )
 
 set_target_properties(
@@ -22,15 +21,13 @@ target_link_libraries(
   PRIVATE
     filePLY
     rply
-  
 )
-
 
 add_executable(
   epsilon-finder
     find-eps.cpp
     ${CPP}
-    )
+)
 
 set_target_properties(
   epsilon-finder
@@ -38,14 +35,13 @@ set_target_properties(
       ARCHIVE_OUTPUT_DIRECTORY "../lib/"
       LIBRARY_OUTPUT_DIRECTORY "../lib/"
       RUNTIME_OUTPUT_DIRECTORY "../"
-
 )
 
+link_directories(/usr/local/cuda-12.8/lib64)
 
 target_link_libraries(
   epsilon-finder
-#    ${Boost_LIBRARIES}
     filePLY
     rply
- "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib"
+    /usr/local/cuda-12.8/lib64/libcudart.so
 )
