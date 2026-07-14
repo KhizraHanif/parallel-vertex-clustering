@@ -116,6 +116,12 @@ The CPU clustering code (cpp/TriangleMeshPWeld.cpp, cpp/KDTreeFlann.cpp,
 and related files) is adapted from their original work. The GPU implementations
 in cpp/PWeldCuda.cu and cpp/neighbor_list.cu are original contributions.
 
+This repository contains the implementation described in:
+
+> Hanif, K. (2026). *GPU-Based Lock-Free Mesh Reduction Using 
+> Deterministic Vertex Clustering*. M.Sc. Thesis, University of Victoria.
+> https://dspace.library.uvic.ca/items/9644cfc3-d909-4c5a-b666-7e31893abed0
+
 ## Citation
 
 If you use code cpu versions of code in your research, please cite the original P-Weld paper:
