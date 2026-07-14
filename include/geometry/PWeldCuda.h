@@ -31,6 +31,11 @@ namespace open3d {
             double eps,
             bool enable_injection,
             bool print_time);
+ void merge_vertices_forward_gpu_otf(
+            std::vector<Eigen::Vector3d>& vertices,
+            std::vector<Eigen::Vector3i>& triangles,
+            double eps,
+            bool print_time);
 
     } // namespace geometry
 } // namespace open3d

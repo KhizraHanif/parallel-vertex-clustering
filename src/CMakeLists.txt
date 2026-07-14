@@ -1,6 +1,9 @@
 enable_language(CUDA)
 file(GLOB CPP "../cpp/*.cpp")
-set(GPU_SRC ../cpp/PWeldCuda.cu)
+set(GPU_SRC 
+    ../cpp/PWeldCuda.cu
+    ../cpp/neighbor_list.cu
+)
 
 add_executable(merge-vertices
     main.cpp
