@@ -1,96 +1,46 @@
-# Adapted from https://r4nd0m6uy.ch/cmake-and-cpputest.html
-
 cmake_minimum_required(VERSION 3.18)
 project(merge-vertices LANGUAGES C CXX CUDA)
 add_definitions(-DUSE_CUDA)
-
-
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-enable_language(CUDA)  # Ensure CUDA is enabled
+enable_language(CUDA)
 
-# CUDA Flags
-set(CMAKE_CUDA_ARCHITECTURES 75 86)
+# Minimum sm_70 required for warp intrinsics (__match_any_sync, __activemask).
+# Override with -DCMAKE_CUDA_ARCHITECTURES=XX for your specific GPU.
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES 70)
+endif()
+
 set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda -Xcompiler=-Wall -rdc=true")
 
-if(APPLE)
-SET(CMAKE_CXX_COMPILER
-#"/opt/homebrew/bin/g++-11"
-"/usr/local/bin/g++-13"
-)
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -march=native -Wall -g")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
-set( CMAKE_CXX_FLAGS
-  "${CMAKE_CXX_FLAGS} \
-    -fopenmp \
-    -march=native \
-    -Wall \
-    -g \
-    -ansi"
-)
-
-set( CMAKE_CXX_FLAGS_DEBUG
-  "${CMAKE_CXX_FLAGS_DEBUG} \
-    -fprofile-arcs -ftest-coverage \
-     -O0" 
-) 
-set( CMAKE_CXX_FLAGS_RELEASE
-  "${CMAKE_CXX_FLAGS_RELEASE} \
-  -O3"
-)
-set(
-  basepath
-    "${CMAKE_SOURCE_DIR}"
-)
-
-# find_package( Boost 1.62.0 COMPONENTS program_options REQUIRED )
-
-# Ensure Thrust uses CUDA backend
-add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CUDA)
-
-set_source_files_properties(${CPP} PROPERTIES LANGUAGE CUDA)
-file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "test/*.cu" "cuda/*.cu" "cpp/*.cpp" "filePLY/*.cpp" "rply/*.c")
-# Base Paths
 set(basepath "${CMAKE_SOURCE_DIR}")
+add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CUDA)
+set_source_files_properties(${CPP} PROPERTIES LANGUAGE CUDA)
+
 include_directories("${basepath}/include")
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/external/cuNSearch/include)
 
-# include_directories( ${Boost_INCLUDE_DIR} )
+find_package(CUDAToolkit REQUIRED)
 
-include_directories(
-    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8/include"
-    "C:/Users/RBTGL/vcpkg/installed/x64-windows/include"
-)
-set(CUDA_TOOLKIT_ROOT_DIR "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8")
-# Vcpkg Path for Catch2
-set(CMAKE_TOOLCHAIN_FILE "C:/Users/RBTGL/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
-
-
-# Production code
 add_subdirectory(src)
 add_subdirectory(rply)
 add_subdirectory(filePLY)
-# Add cuNSearch as a library
-# Add cuNSearch as a submodule
 add_subdirectory(external/cuNSearch)
+
 target_include_directories(cuNSearch PUBLIC
-    ${CMAKE_BINARY_DIR}/external/cuNSearch/cuNSearch
-)
+    ${CMAKE_BINARY_DIR}/external/cuNSearch/cuNSearch)
 
-# Include its headers
-include_directories(${CMAKE_SOURCE_DIR}/external/cuNSearch/include)
-
-# Link cuNSearch to merge-vertices
 target_link_libraries(merge-vertices PRIVATE cuNSearch)
 
-
-# Enable Unit Tests
 set_target_properties(merge-vertices PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-)
-
+    CUDA_SEPARABLE_COMPILATION ON)

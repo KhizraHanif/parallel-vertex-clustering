@@ -40,8 +40,8 @@
 #include "../include/io/TriangleMeshIO.h"
 #include "../include/geometry/TriangleMeshPWeld.h"
 #include "../include/geometry/KDTreeFlann.h"
-enum class Version { OPEN3D = 0, FORWARD, FORWARD_ASYNC, GPU, GPU_STREAMING };
-std::string programName[] = { "Open3D", "forward", "forward_async", "gpu", "gpu_streaming" };
+enum class Version { OPEN3D = 0, FORWARD, FORWARD_ASYNC, GPU, GPU_STREAMING, GPU_OTF };
+std::string programName[] = { "Open3D", "forward", "forward_async", "gpu", "gpu_streaming", "gpu_otf" };
 
 
 
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     open3d::io::ReadTriangleMesh(dataPath, mesh);
 
     open3d::geometry::KDTreeFlann kdtree;  // declare empty
-    if (version <= 2) {                    // only for CPU-based versions
+    if (version <= 3) {                    // only for CPU-based versions
         auto t0 = std::chrono::high_resolution_clock::now();
         kdtree.SetGeometry(mesh);          // build the KD-tree
         auto t1 = std::chrono::high_resolution_clock::now();
@@ -143,6 +143,16 @@ int main(int argc, char** argv) {
         break;
     }
 
+case Version::GPU_OTF: {
+        std::cout << "Running GPU On-the-Fly clustering (Model 1)...\n";
+        open3d::geometry::merge_vertices_forward_gpu_otf(
+            mesh_pweld.vertices_,
+            mesh_pweld.triangles_,
+            eps,
+            true);
+        break;
+    }
+
 #endif
 
 
@@ -168,10 +178,9 @@ int main(int argc, char** argv) {
         }
         else {
             // ---- Full triangle mesh ----
-            open3d::io::WriteTriangleMesh(outputDir, mesh_pweld, false, true);
+         open3d::io::WriteTriangleMesh(outputDir, mesh_pweld, false, true);
             std::cout << "[OK] Wrote simplified mesh: "
-                << mesh_pweld.vertices_.size() << " vertices, "
-                << mesh_pweld.triangles_.size() << " faces\n";
+                << mesh_pweld.vertices_.size() << " vertices\n";
         }
     }
 }
