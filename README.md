@@ -1,51 +1,134 @@
-# # Lock-free Vertex Clustering for Multicore Mesh Reduction
+# GPU Vertex Clustering for 3D Mesh Reduction
 
-![Mesh Simplification](fig/simplification-example.png)  
+![Mesh Simplification](fig/simplification-example.png)
 
-## About the project
-Modern data collection methods can capture representations of 3D objects at resolutions much greater than they can be discretely rendered as an image. To improve the efficiency of storage, transmission, rendering, and editing of 3D models constructed from such data, it is beneficial to first employ a mesh reduction technique to reduce the size of a mesh. Vertex clustering, a technique that merges close vertices together, has particularly wide applicability, because it operates only on vertices and their spatial proximity. Given an order for vertices, a sequential implementation of the algorithm would iterate unclustered vertices and create for each one a new cluster with that vertex and all other unclustered vertices within a user-specified range of epsilon. The example below illustrates this clustering process.
+## About
 
-![Clustering Example](fig/clustering-example.png)  
+This project extends the P-Weld algorithm by Fathollahi & Chester
+(SIGGRAPH Asia 2023) with two fully GPU-resident implementations of
+strict-mode vertex clustering for 3D mesh reduction.
 
-However, it is very difficult to parallelise vertex clustering in a deterministic manner because it contains extensive algorithmic dependencies. This project introduces _P-Weld_, a lock-free, multi-core algorithm. It is implemented as an extension to the `MergeCloseVertices(...)` function in [Open3D](www.open3d.org), which we refer to as _S-Weld_. The key idea is to perform a map-reduce style convergence process using a spatial proximity graph as an explicit representation of flow dependencies that can be synchronised with atomic primitives.
+The original P-Weld algorithm introduced a lock-free, dependency-driven
+approach to parallel vertex clustering using atomic primitives. This work
+ports and optimises that algorithm for NVIDIA GPUs, eliminating CPU
+involvement in the clustering pipeline entirely.
 
-For details, refer to [the paper](https://dl.acm.org/doi/10.1145/3610548.3618234).
+![Clustering Example](fig/clustering-example.png)
 
-## Getting started
-### Dependencies
-- CMake 3.4 or higher
-- C++17 or higher
-### Building the project
-- Clone the repo
-`git clone git@github.com:nimaft97/parallel-vertex-clustering.git`
-- Navigate to the main directory
-- Create a folder to build the project and enter it
-`mkdir build && cd build/`
-- Generate Makefile using CMake
-`cmake -DCMAKE_BUILD_TYPE=Release ..`
-- Build using Make
-`make`
-- Upon successful completion of the building phase, two executables called `epsilon-finder` and `merge-vertices` must be created. epsilon-finder is a complimentary tool to help the user find the right epsilon corresponding to the requested reduction rate, while merge-vertices expects to receive epsilon along with number of cores, path to the dataset and the algorithm type.
+## Contributions
+
+Building on the original CPU P-Weld implementation, this project adds:
+
+**Model 1: On-the-Fly GPU Clustering**
+A direct GPU port of P-Weld's dependency-driven logic. The hash grid is
+built once on the GPU and neighbor relationships are discovered on the fly
+during each clustering iteration — no precomputed adjacency list.
+
+**Model 2: GPU Streaming Clustering (main contribution)**
+A fully GPU-resident pipeline that precomputes a CSR adjacency list once
+using a two-pass hash grid approach, then reuses it across all clustering
+iterations. Key optimisations include:
+- SplitMix64 open-addressing hash table for O(1) cell lookup
+- Warp-buffered frontier kernel with match_any_sync aggregation
+- Hybrid dense/light neighbor search paths for load balancing
+- cudaOccupancyMaxPotentialBlockSize for adaptive launch tuning
+
+Both GPU models produce bit-identical output to the original CPU P-Weld.
+
+Also included is a reusable standalone GPU neighbor search module
+(cpp/neighbor_list.cu) that can be dropped into other CUDA projects.
+
+## Requirements
+
+- NVIDIA GPU (Volta or newer, sm_70+)
+- CUDA Toolkit 12.x
+- CMake 3.18+
+- GCC compatible with your CUDA version (GCC 11 recommended for CUDA 12.x)
+- Linux (tested on Ubuntu 22.04)
+
+## Build
+
+```bash
+git clone --recurse-submodules https://github.com/KhizraHanif/parallel-vertex-clustering.git
+cd parallel-vertex-clustering
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=70 ..
+make -j$(nproc)
+```
+
+For best performance on your specific GPU, set the architecture explicitly:
+
+```bash
+# RTX 3080/3090 (Ampere)
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86 ..
+
+# RTX 4080/4090 (Ada)
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=89 ..
+
+# RTX 5070 Ti/5080/5090 (Blackwell)
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=120 ..
+```
 
 ## Usage
-In the `build` folder, run either of the executables with no extra arguments for help.
-`./merge-vertices <eps> <algorithm> <path-to-ply-dataset> <number of cores to launch> <optional-output-path>`
 
-__Note that the only accepted dataset type at the moment is ply__
+```bash
+./merge-vertices <eps> <version> <mesh.ply> <cores> [output.ply]
+```
+
+| Version | Description | Authors |
+|---------|-------------|---------|
+| `0` | S-Weld — Open3D baseline | Fathollahi & Chester |
+| `1` | P-Weld — CPU multicore lock-free clustering | Fathollahi & Chester |
+| `2` | P-Weld Async — asynchronous CPU variant | Fathollahi & Chester |
+| `3` | Hybrid — CPU KDTree search + GPU frontier clustering | Hanif |
+| `4` | Model 2: GPU Streaming — fully GPU, precomputed CSR | Hanif |
+| `5` | Model 1: GPU On-the-Fly — fully GPU, no precomputed CSR | Hanif |
+
+Example:
+```bash
+./merge-vertices 0.01 4 ../data/xyzrgb_manuscript.ply 1 output.ply
+```
+
+Note: only .ply format is supported.
+
+## Finding the right epsilon
+
+Use the included epsilon-finder to find an epsilon value corresponding
+to a desired vertex reduction rate:
+
+```bash
+./epsilon-finder <mesh.ply> <target-reduction-rate> <threads>
+```
+
+Example — reduce to 10% of original vertices using 4 threads:
+```bash
+./epsilon-finder ../data/xyzrgb_manuscript.ply 0.1 4
+```
+
+Note: epsilon-finder uses the CPU P-Weld implementation and is intended
+for offline calibration before running the GPU versions.
+
+## Attribution
+
+This project extends the P-Weld implementation by
+[Fathollahi & Chester](https://github.com/nimaft97/parallel-vertex-clustering).
+The CPU clustering code (cpp/TriangleMeshPWeld.cpp, cpp/KDTreeFlann.cpp,
+and related files) is adapted from their original work. The GPU implementations
+in cpp/PWeldCuda.cu and cpp/neighbor_list.cu are original contributions.
 
 ## Citation
 
-If you use this code in your research, please cite [our paper](https://dl.acm.org/doi/10.1145/3610548.3618234):  
+If you use code cpu versions of code in your research, please cite the original P-Weld paper:
 
 ```bibtex
 @inproceedings{10.1145/3610548.3618234,
-author = {Fathollahi, Nima and Chester, Sean},
-title = {Lock-Free Vertex Clustering for Multicore Mesh Reduction},
-year = {2023},
-url = {https://doi.org/10.1145/3610548.3618234},
-doi = {10.1145/3610548.3618234},
-booktitle = {{SIGGRAPH} Asia 2023 Conference Papers},
-articleno = {60},
-numpages = {10}
+  author    = {Fathollahi, Nima and Chester, Sean},
+  title     = {Lock-Free Vertex Clustering for Multicore Mesh Reduction},
+  year      = {2023},
+  url       = {https://doi.org/10.1145/3610548.3618234},
+  doi       = {10.1145/3610548.3618234},
+  booktitle = {{SIGGRAPH} Asia 2023 Conference Papers},
+  articleno = {60},
+  numpages  = {10}
 }
 ```
